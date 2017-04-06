@@ -2,8 +2,11 @@ defmodule Authable.GrantType.RefreshTokenTest do
   use ExUnit.Case
   use Authable.Rollbackable
   use Authable.RepoCase
+  use Authable.ModelCase
   import Authable.Factory
+
   alias Authable.GrantType.RefreshToken, as: RefreshTokenGrantType
+  alias Authable.GrantType.Password, as: PasswordGrantType
 
   setup do
     resource_owner = insert(:user)
@@ -12,7 +15,23 @@ defmodule Authable.GrantType.RefreshTokenTest do
     app = insert(:app, user_id: resource_owner.id, client_id: client.id)
     token = insert(:refresh_token, user_id: resource_owner.id, details: %{client_id: client.id, scope: "read"})
     params = %{"client_id" => client.id, "client_secret" => client.secret, "refresh_token" => token.value}
-    {:ok, [params: params, app: app]}
+    {:ok, [params: params, app: app, resource_owner: resource_owner]}
+  end
+
+  test "automatically creates refresh token", %{params: params, resource_owner: resource_owner} do
+    count0 = @repo.aggregate(
+      (from @token_store, where: [name: "refresh_token"]), :count, :id)
+
+    params = params
+    |> Map.delete("refresh_token")
+    |> Map.put("email", resource_owner.email)
+    |> Map.put("password", "12345678")
+
+    access_token = PasswordGrantType.authorize(params)
+    assert access_token.details[:grant_type] == "password"
+
+    assert @repo.aggregate(
+      (from @token_store, where: [name: "refresh_token"]), :count, :id) == count0 + 1
   end
 
   test "oauth2 authorization with refresh_token grant type", %{params: params} do

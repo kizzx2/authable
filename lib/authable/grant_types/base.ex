@@ -74,7 +74,7 @@ defmodule Authable.GrantType.Base do
     }
   end
 
-  defp put_refresh_token?(token_params, true),
+  defp put_refresh_token?(token_params, Authable.GrantType.RefreshToken),
     do: put_refresh_token(token_params)
   defp put_refresh_token?(token_params, _),
     do: token_params
